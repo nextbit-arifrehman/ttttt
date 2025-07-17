@@ -1,327 +1,328 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "../../contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, DollarSign, MapPin, Calendar, User, Mail } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import apiClient from "../../lib/api";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
+import { Separator } from '../../components/ui/separator';
+import { Badge } from '../../components/ui/badge';
+import { Calendar } from '../../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
+import { MapPin, DollarSign, User, CalendarIcon, ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
+import { toast } from '../../hooks/use-toast';
+import { cn } from '../../lib/utils';
+import api from '../../lib/api';
 
-const offerSchema = z.object({
-  offeredAmount: z.string().min(1, "Offer amount is required"),
-  buyingDate: z.string().min(1, "Buying date is required"),
-});
-
-export default function MakeOffer() {
-  const { propertyId } = useParams();
-  const { user } = useAuth();
-  const { toast } = useToast();
+const MakeOffer = () => {
+  const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const property = location.state?.property;
 
-  // Fetch property details
-  const { data: property, isLoading: propertyLoading, error } = useQuery({
-    queryKey: ['/api/properties', propertyId],
-    enabled: !!propertyId,
-  });
+  const [offerAmount, setOfferAmount] = useState('');
+  const [buyingDate, setBuyingDate] = useState(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Make offer mutation
-  const makeOfferMutation = useMutation({
-    mutationFn: async (offerData) => {
-      const response = await apiClient.post("/api/offers", {
-        propertyId: property.id,
-        propertyTitle: property.title,
-        propertyLocation: property.location,
-        propertyImage: property.images?.[0] || "",
-        buyerId: user.id,
-        buyerName: user.displayName || user.email,
-        buyerEmail: user.email,
-        agentId: property.agentId,
-        agentName: property.agentName,
-        offeredAmount: parseFloat(offerData.offeredAmount),
-        buyingDate: offerData.buyingDate
-      });
-      
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Offer Submitted",
-        description: "Your offer has been submitted successfully. The agent will review it shortly.",
-      });
-      navigate("/dashboard/user/property-bought");
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to submit offer.",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const form = useForm({
-    resolver: zodResolver(offerSchema),
-    defaultValues: {
-      offeredAmount: "",
-      buyingDate: "",
-    },
-  });
-
-  const onSubmit = (data) => {
-    // Validate offer amount is within property price range
-    const amount = parseFloat(data.offeredAmount);
-    if (property && (amount < property.minPrice || amount > property.maxPrice)) {
-      toast({
-        title: "Invalid Offer Amount",
-        description: `Offer amount must be between $${property.minPrice?.toLocaleString()} and $${property.maxPrice?.toLocaleString()}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    makeOfferMutation.mutate(data);
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  // Get tomorrow's date as minimum date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split('T')[0];
-
-  if (error) {
+  if (!property) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <p className="text-red-500 mb-4">Property not found</p>
-            <Button onClick={() => navigate("/properties")}>Back to Properties</Button>
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">Property Not Found</h2>
+            <p className="text-gray-600 mb-6">
+              No property information available. Please go back to your wishlist.
+            </p>
+            <Button onClick={() => navigate('/dashboard/wishlist')}>
+              Back to Wishlist
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (propertyLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-8 w-48 mb-8" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Skeleton className="h-96 w-full rounded-lg" />
-            <Skeleton className="h-96 w-full rounded-lg" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSubmitOffer = async () => {
+    // Validation
+    if (!offerAmount || isNaN(offerAmount)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid offer amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const amount = parseFloat(offerAmount);
+    const minPrice = property.minPrice || 0;
+    const maxPrice = property.maxPrice || Infinity;
+
+    if (amount < minPrice || amount > maxPrice) {
+      toast({
+        title: "Invalid Offer Amount",
+        description: `Offer amount must be between $${minPrice.toLocaleString()} and $${maxPrice.toLocaleString()}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!buyingDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a buying date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.post('/offers/create', {
+        propertyId: property.propertyId || property._id,
+        propertyTitle: property.propertyTitle || property.title,
+        propertyLocation: property.propertyLocation || property.location,
+        propertyImage: property.propertyImage || property.image,
+        agentName: property.agentName,
+        agentEmail: property.agentEmail,
+        buyerEmail: user.email,
+        buyerName: user.displayName || user.email,
+        offeredAmount: amount,
+        buyingDate: buyingDate.toISOString(),
+        status: 'pending'
+      });
+
+      toast({
+        title: "Success",
+        description: "Your offer has been submitted successfully",
+      });
+
+      navigate('/dashboard/property-bought');
+    } catch (error) {
+      console.error('Error submitting offer:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to submit offer",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/dashboard/user/wishlist")}
-            className="text-neutral-600 hover:text-neutral-900"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Wishlist
-          </Button>
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/dashboard/wishlist')}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Wishlist
+        </Button>
+        
+        <div>
+          <h1 className="text-3xl font-bold">Make an Offer</h1>
+          <p className="text-gray-600 mt-2">Submit your offer for this property</p>
         </div>
+      </div>
 
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-inter font-bold text-3xl md:text-4xl text-neutral-900 mb-2">
-            Make an Offer
-          </h1>
-          <p className="text-lg text-neutral-600">
-            Submit your offer for this property
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Property Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Property Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {property.images && property.images[0] && (
-                <img
-                  src={property.images[0]}
-                  alt={property.title}
-                  className="w-full h-48 object-cover rounded-lg"
-                />
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Property Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Property Details</CardTitle>
+            <CardDescription>
+              Review the property information before making your offer
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            <div>
+              <img
+                src={property.propertyImage || property.image}
+                alt={property.propertyTitle || property.title}
+                className="w-full h-48 object-cover rounded-lg"
+              />
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <h3 className="font-bold text-lg">
+                  {property.propertyTitle || property.title}
+                </h3>
+                <Badge variant={property.verificationStatus === 'verified' ? 'default' : 'secondary'}>
+                  {property.verificationStatus}
+                </Badge>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span>{property.propertyLocation || property.location}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-gray-500" />
+                <span className="font-semibold">{property.priceRange}</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span>Agent: <span className="font-medium">{property.agentName}</span></span>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-blue-900 mb-2">Price Range Guidelines</h4>
+              <p className="text-sm text-blue-800">
+                Your offer must be within the specified price range: <strong>{property.priceRange}</strong>
+              </p>
+              {property.minPrice && property.maxPrice && (
+                <p className="text-sm text-blue-800 mt-1">
+                  Min: ${property.minPrice.toLocaleString()} - Max: ${property.maxPrice.toLocaleString()}
+                </p>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Offer Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Offer</CardTitle>
+            <CardDescription>
+              Fill out the details for your property offer
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="propertyTitle">Property Title</Label>
+                <Input
+                  id="propertyTitle"
+                  value={property.propertyTitle || property.title}
+                  readOnly
+                  className="bg-gray-50"
+                />
+              </div>
               
               <div>
-                <h3 className="font-semibold text-lg text-neutral-900">{property.title}</h3>
-                <div className="flex items-center text-neutral-600 mt-1">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  {property.location}
-                </div>
+                <Label htmlFor="propertyLocation">Property Location</Label>
+                <Input
+                  id="propertyLocation"
+                  value={property.propertyLocation || property.location}
+                  readOnly
+                  className="bg-gray-50"
+                />
               </div>
-
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">Price Range</h4>
-                <div className="text-2xl font-bold text-primary">
-                  {formatCurrency(property.minPrice)} - {formatCurrency(property.maxPrice)}
-                </div>
-                <p className="text-sm text-blue-700 mt-1">
-                  Your offer must be within this range
+            </div>
+            
+            <div>
+              <Label htmlFor="agentName">Agent Name</Label>
+              <Input
+                id="agentName"
+                value={property.agentName}
+                readOnly
+                className="bg-gray-50"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="buyerEmail">Buyer Email</Label>
+                <Input
+                  id="buyerEmail"
+                  value={user.email}
+                  readOnly
+                  className="bg-gray-50"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="buyerName">Buyer Name</Label>
+                <Input
+                  id="buyerName"
+                  value={user.displayName || user.email}
+                  readOnly
+                  className="bg-gray-50"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="offerAmount">Offer Amount ($)</Label>
+              <Input
+                id="offerAmount"
+                type="number"
+                placeholder="Enter your offer amount"
+                value={offerAmount}
+                onChange={(e) => setOfferAmount(e.target.value)}
+                className="mt-1"
+                min={property.minPrice || 0}
+                max={property.maxPrice || undefined}
+              />
+              {property.minPrice && property.maxPrice && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Valid range: ${property.minPrice.toLocaleString()} - ${property.maxPrice.toLocaleString()}
                 </p>
-              </div>
-
-              <div className="p-4 bg-neutral-50 rounded-lg">
-                <h4 className="font-medium text-neutral-900 mb-2">Listed by</h4>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-medium">{property.agentName}</div>
-                    <div className="text-sm text-neutral-600">{property.agentEmail}</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Offer Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Your Offer</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  {/* Readonly Fields */}
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Property Title
-                      </label>
-                      <Input value={property.title} readOnly className="bg-neutral-50" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Property Location
-                      </label>
-                      <Input value={property.location} readOnly className="bg-neutral-50" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Agent Name
-                      </label>
-                      <Input value={property.agentName} readOnly className="bg-neutral-50" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Buyer Email
-                      </label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                        <Input value={user?.email} readOnly className="bg-neutral-50 pl-10" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2">
-                        Buyer Name
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                        <Input 
-                          value={user?.displayName || user?.email} 
-                          readOnly 
-                          className="bg-neutral-50 pl-10" 
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Editable Fields */}
-                  <FormField
-                    control={form.control}
-                    name="offeredAmount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Offer Amount ($)</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                            <Input
-                              type="number"
-                              placeholder="Enter your offer amount"
-                              className="pl-10"
-                              min={property.minPrice}
-                              max={property.maxPrice}
-                              step="1000"
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <div className="text-sm text-neutral-600">
-                          Range: {formatCurrency(property.minPrice)} - {formatCurrency(property.maxPrice)}
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="buyingDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Preferred Buying Date</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                            <Input
-                              type="date"
-                              className="pl-10"
-                              min={minDate}
-                              {...field}
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+              )}
+            </div>
+            
+            <div>
+              <Label>Buying Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
                   <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-blue-700"
-                    disabled={makeOfferMutation.isPending}
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal mt-1",
+                      !buyingDate && "text-muted-foreground"
+                    )}
                   >
-                    {makeOfferMutation.isPending ? "Submitting Offer..." : "Submit Offer"}
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {buyingDate ? format(buyingDate, "PPP") : <span>Pick a date</span>}
                   </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={buyingDate}
+                    onSelect={setBuyingDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <Separator />
+            
+            <div className="bg-amber-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-amber-900 mb-2">Important Notes</h4>
+              <ul className="text-sm text-amber-800 space-y-1">
+                <li>• Your offer will be sent to the property agent for review</li>
+                <li>• You will be notified when the agent responds to your offer</li>
+                <li>• Only verified properties can be purchased</li>
+                <li>• Offers must be within the specified price range</li>
+              </ul>
+            </div>
+            
+            <Button
+              onClick={handleSubmitOffer}
+              disabled={isSubmitting || !offerAmount || !buyingDate}
+              className="w-full"
+            >
+              {isSubmitting ? 'Submitting Offer...' : 'Submit Offer'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
-}
+};
+
+export default MakeOffer;

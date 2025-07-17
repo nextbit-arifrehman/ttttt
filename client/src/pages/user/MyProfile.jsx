@@ -7,10 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-import { User, Mail, Calendar, Shield, Edit, Settings, BarChart, Users } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Edit } from 'lucide-react';
 import { toast } from '../../hooks/use-toast';
 
-const AdminProfile = () => {
+const MyProfile = () => {
   const { user, updateUserProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
@@ -43,15 +43,24 @@ const AdminProfile = () => {
   };
 
   const getUserInitials = (name) => {
-    if (!name) return 'A';
+    if (!name) return 'U';
     return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getRoleBadgeVariant = (role) => {
+    switch (role) {
+      case 'admin': return 'destructive';
+      case 'agent': return 'default';
+      case 'user': return 'secondary';
+      default: return 'outline';
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Admin Profile</h1>
-        <p className="text-gray-600 mt-2">Manage your administrator account and system overview</p>
+        <h1 className="text-3xl font-bold">My Profile</h1>
+        <p className="text-gray-600 mt-2">Manage your account information and preferences</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -68,13 +77,15 @@ const AdminProfile = () => {
             </div>
             
             <CardTitle className="text-xl">
-              {user?.displayName || 'Administrator'}
+              {user?.displayName || 'User'}
             </CardTitle>
             
             <CardDescription className="flex justify-center">
-              <Badge variant="default" className="bg-red-600">
-                Platform Administrator
-              </Badge>
+              {user?.role && user.role !== 'user' && (
+                <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
+                  {user.role}
+                </Badge>
+              )}
             </CardDescription>
           </CardHeader>
           
@@ -96,17 +107,9 @@ const AdminProfile = () => {
             </div>
             
             <div className="flex items-center gap-3">
-              <Settings className="w-5 h-5 text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-500">Role</p>
-                <p className="font-medium">System Administrator</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-500">Admin Since</p>
+                <p className="text-sm text-gray-500">Member Since</p>
                 <p className="font-medium">
                   {user?.metadata?.creationTime 
                     ? new Date(user.metadata.creationTime).toLocaleDateString()
@@ -119,9 +122,9 @@ const AdminProfile = () => {
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-gray-500" />
               <div>
-                <p className="text-sm text-gray-500">Access Level</p>
+                <p className="text-sm text-gray-500">Email Verified</p>
                 <p className="font-medium">
-                  <Badge variant="default" className="bg-red-600">Full Access</Badge>
+                  {user?.emailVerified ? 'Yes' : 'No'}
                 </p>
               </div>
             </div>
@@ -136,7 +139,7 @@ const AdminProfile = () => {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Edit Admin Profile</DialogTitle>
+                    <DialogTitle>Edit Profile</DialogTitle>
                     <DialogDescription>
                       Update your profile information. Note: Email cannot be changed.
                     </DialogDescription>
@@ -188,12 +191,12 @@ const AdminProfile = () => {
           </CardContent>
         </Card>
 
-        {/* System Overview Card */}
+        {/* Account Statistics Card */}
         <Card>
           <CardHeader>
-            <CardTitle>System Overview</CardTitle>
+            <CardTitle>Account Overview</CardTitle>
             <CardDescription>
-              Platform statistics and quick access
+              Your activity summary on the platform
             </CardDescription>
           </CardHeader>
           
@@ -201,62 +204,48 @@ const AdminProfile = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-4 bg-blue-50 rounded-lg">
                 <p className="text-2xl font-bold text-blue-600">0</p>
-                <p className="text-sm text-gray-600">Total Properties</p>
+                <p className="text-sm text-gray-600">Properties in Wishlist</p>
               </div>
               
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <p className="text-2xl font-bold text-green-600">0</p>
-                <p className="text-sm text-gray-600">Verified Properties</p>
-              </div>
-              
-              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <p className="text-2xl font-bold text-yellow-600">0</p>
-                <p className="text-sm text-gray-600">Pending Verification</p>
+                <p className="text-sm text-gray-600">Properties Bought</p>
               </div>
               
               <div className="text-center p-4 bg-purple-50 rounded-lg">
                 <p className="text-2xl font-bold text-purple-600">0</p>
-                <p className="text-sm text-gray-600">Total Users</p>
+                <p className="text-sm text-gray-600">Reviews Written</p>
+              </div>
+              
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <p className="text-2xl font-bold text-orange-600">0</p>
+                <p className="text-sm text-gray-600">Pending Offers</p>
               </div>
             </div>
             
             <div className="pt-4 border-t">
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <BarChart className="w-4 h-4" />
-                Quick Actions
-              </h4>
+              <h4 className="font-semibold mb-3">Recent Activity</h4>
               <div className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Manage Properties
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="w-4 h-4 mr-2" />
-                  Manage Users
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <BarChart className="w-4 h-4 mr-2" />
-                  View Analytics
-                </Button>
+                <p className="text-sm text-gray-500">No recent activity</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Admin Privileges Card */}
+      {/* Additional Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Administrator Privileges</CardTitle>
+          <CardTitle>Account Information</CardTitle>
           <CardDescription>
-            Your administrative capabilities and access levels
+            Important details about your account
           </CardDescription>
         </CardHeader>
         
         <CardContent>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h4 className="font-semibold mb-3">Account Management</h4>
+              <h4 className="font-semibold mb-3">Authentication Provider</h4>
               <div className="space-y-2">
                 {user?.providerData?.map((provider, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -268,8 +257,11 @@ const AdminProfile = () => {
                   </div>
                 ))}
               </div>
-              
-              <div className="mt-4 space-y-2">
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-3">Security</h4>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Email Verification</span>
                   <Badge variant={user?.emailVerified ? 'default' : 'destructive'}>
@@ -278,38 +270,8 @@ const AdminProfile = () => {
                 </div>
                 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Admin Status</span>
-                  <Badge variant="default" className="bg-red-600">Active</Badge>
-                </div>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-3">System Permissions</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Property Management</span>
-                  <Badge variant="default">Full Access</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">User Management</span>
-                  <Badge variant="default">Full Access</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">System Configuration</span>
-                  <Badge variant="default">Full Access</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Analytics & Reports</span>
-                  <Badge variant="default">Full Access</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Advertisement Control</span>
-                  <Badge variant="default">Full Access</Badge>
+                  <span className="text-sm">Two-Factor Auth</span>
+                  <Badge variant="outline">Not Enabled</Badge>
                 </div>
               </div>
             </div>
@@ -320,4 +282,4 @@ const AdminProfile = () => {
   );
 };
 
-export default AdminProfile;
+export default MyProfile;

@@ -1,436 +1,387 @@
-import { useParams, Link } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "../contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import ReviewCard from "../components/ReviewCard";
-import { MapPin, Heart, Star, Plus, Check, Clock, ArrowLeft } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import apiClient from "../lib/api";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Separator } from '../components/ui/separator';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
+import { Textarea } from '../components/ui/textarea';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { Star, MapPin, DollarSign, User, Calendar, Heart } from 'lucide-react';
+import { toast } from '../hooks/use-toast';
+import api from '../lib/api';
 
-const reviewSchema = z.object({
-  rating: z.string().min(1, "Please select a rating"),
-  description: z.string().min(10, "Review must be at least 10 characters long"),
-});
-
-export default function PropertyDetails() {
+const PropertyDetails = () => {
   const { id } = useParams();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [property, setProperty] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [reviewText, setReviewText] = useState('');
+  const [rating, setRating] = useState(5);
+  const [isAddingReview, setIsAddingReview] = useState(false);
+  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
 
-  // Fetch property details
-  const { data: property, isLoading: propertyLoading, error: propertyError } = useQuery({
-    queryKey: ['/api/properties', id],
-    enabled: !!id,
-  });
+  useEffect(() => {
+    fetchPropertyDetails();
+    fetchPropertyReviews();
+  }, [id]);
 
-  // Fetch property reviews
-  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
-    queryKey: ['/api/reviews/property', id],
-    enabled: !!id,
-  });
-
-  // Add to wishlist mutation
-  const addToWishlistMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post("/api/wishlist", {
-        userId: user.id,
-        propertyId: property.id,
-        propertyTitle: property.title,
-        propertyLocation: property.location,
-        propertyImage: property.images?.[0] || "",
-        agentName: property.agentName,
-        agentImage: property.agentImage,
-        priceRange: property.priceRange || `${property.minPrice?.toLocaleString()} - ${property.maxPrice?.toLocaleString()}`,
-        verificationStatus: property.verificationStatus
-      });
-      
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Added to Wishlist",
-        description: "Property has been added to your wishlist successfully.",
-      });
-    },
-    onError: (error) => {
+  const fetchPropertyDetails = async () => {
+    try {
+      const response = await api.get(`/properties/${id}`);
+      setProperty(response.data);
+    } catch (error) {
+      console.error('Error fetching property details:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to add property to wishlist.",
+        description: "Failed to load property details",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
-  // Add review mutation
-  const addReviewMutation = useMutation({
-    mutationFn: async (reviewData) => {
-      const response = await apiClient.post("/api/reviews", {
-        propertyId: property.id,
-        propertyTitle: property.title,
-        userId: user.id,
-        userName: user.displayName || user.email,
-        userImage: user.photoURL || "",
-        agentName: property.agentName,
-        rating: parseInt(reviewData.rating),
-        description: reviewData.description
+  const fetchPropertyReviews = async () => {
+    try {
+      const response = await api.get(`/reviews/property/${id}`);
+      setReviews(response.data);
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    }
+  };
+
+  const handleAddToWishlist = async () => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to add properties to wishlist",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (user.role !== 'user') {
+      toast({
+        title: "Access Denied",
+        description: "Only users can add properties to wishlist",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingToWishlist(true);
+    try {
+      await api.post('/wishlist/add', {
+        propertyId: property._id,
+        userEmail: user.email
       });
       
-      return response.data;
-    },
-    onSuccess: () => {
       toast({
-        title: "Review Added",
-        description: "Your review has been submitted successfully.",
+        title: "Success",
+        description: "Property added to wishlist successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/reviews/property', id] });
-      form.reset();
-    },
-    onError: (error) => {
+    } catch (error) {
+      console.error('Error adding to wishlist:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to submit review.",
+        description: error.response?.data?.message || "Failed to add to wishlist",
         variant: "destructive",
       });
+    } finally {
+      setIsAddingToWishlist(false);
     }
-  });
+  };
 
-  const form = useForm({
-    resolver: zodResolver(reviewSchema),
-    defaultValues: {
-      rating: "",
-      description: "",
-    },
-  });
-
-  const handleAddToWishlist = () => {
+  const handleAddReview = async () => {
     if (!user) {
       toast({
-        title: "Login Required",
-        description: "Please log in to add properties to your wishlist.",
+        title: "Authentication Required",
+        description: "Please login to add reviews",
         variant: "destructive",
       });
       return;
     }
 
-    if (user.role !== "user") {
+    if (user.role !== 'user') {
       toast({
         title: "Access Denied",
-        description: "Only users can add properties to wishlist.",
+        description: "Only users can add reviews",
         variant: "destructive",
       });
       return;
     }
 
-    addToWishlistMutation.mutate();
-  };
-
-  const onSubmitReview = (data) => {
-    if (!user) {
+    if (!reviewText.trim()) {
       toast({
-        title: "Login Required",
-        description: "Please log in to submit a review.",
+        title: "Validation Error",
+        description: "Please enter a review",
         variant: "destructive",
       });
       return;
     }
 
-    if (user.role !== "user") {
+    setIsAddingReview(true);
+    try {
+      const response = await api.post('/reviews/add', {
+        propertyId: property._id,
+        propertyTitle: property.title,
+        agentName: property.agentName,
+        reviewerName: user.displayName || user.email,
+        reviewerEmail: user.email,
+        reviewerImage: user.photoURL || '/default-avatar.png',
+        reviewText: reviewText,
+        rating: rating
+      });
+
+      setReviews([response.data, ...reviews]);
+      setReviewText('');
+      setRating(5);
+      
       toast({
-        title: "Access Denied",
-        description: "Only users can submit reviews.",
+        title: "Success",
+        description: "Review added successfully",
+      });
+    } catch (error) {
+      console.error('Error adding review:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to add review",
         variant: "destructive",
       });
-      return;
-    }
-
-    addReviewMutation.mutate(data);
-  };
-
-  const getVerificationBadge = () => {
-    if (!property) return null;
-    
-    switch (property.verificationStatus) {
-      case "verified":
-        return (
-          <Badge className="bg-secondary text-white">
-            <Check className="w-3 h-3 mr-1" />
-            Verified
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-accent text-white border-accent">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive">
-            Rejected
-          </Badge>
-        );
-      default:
-        return null;
+    } finally {
+      setIsAddingReview(false);
     }
   };
 
-  if (propertyError) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <p className="text-red-500 mb-4">Property not found</p>
-            <Link to="/properties">
-              <Button>Back to Properties</Button>
-            </Link>
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse">
+          <div className="h-64 bg-gray-300 rounded-lg mb-6"></div>
+          <div className="h-8 bg-gray-300 rounded mb-4"></div>
+          <div className="h-4 bg-gray-300 rounded mb-2"></div>
+          <div className="h-4 bg-gray-300 rounded mb-2"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <h2 className="text-2xl font-bold mb-4">Property Not Found</h2>
+            <p className="text-gray-600">The requested property could not be found.</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (propertyLoading) {
-    return (
-      <div className="min-h-screen bg-neutral-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-8 w-48 mb-8" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Skeleton className="h-96 w-full rounded-lg" />
-            <div className="space-y-4">
-              <Skeleton className="h-8 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-12 w-full" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const renderStars = (count) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`w-4 h-4 ${i < count ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+      />
+    ));
+  };
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
-        <div className="mb-6">
-          <Link to="/properties">
-            <Button variant="ghost" className="text-neutral-600 hover:text-neutral-900">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Properties
-            </Button>
-          </Link>
+    <div className="container mx-auto px-4 py-8">
+      {/* Property Header */}
+      <div className="grid lg:grid-cols-2 gap-8 mb-8">
+        <div>
+          <img
+            src={property.image}
+            alt={property.title}
+            className="w-full h-96 object-cover rounded-lg shadow-lg"
+          />
         </div>
-
-        {/* Property Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Property Images */}
-          <div className="space-y-4">
-            <div className="relative rounded-lg overflow-hidden">
-              <img
-                src={property.images?.[0] || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"}
-                alt={property.title}
-                className="w-full h-96 object-cover"
-              />
-              <div className="absolute top-4 left-4">
-                {getVerificationBadge()}
-              </div>
+        
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Badge variant={property.verificationStatus === 'verified' ? 'default' : 'secondary'}>
+              {property.verificationStatus}
+            </Badge>
+            {property.isAdvertised && (
+              <Badge variant="outline">Featured</Badge>
+            )}
+          </div>
+          
+          <h1 className="text-3xl font-bold mb-4">{property.title}</h1>
+          
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-gray-500" />
+              <span className="text-lg">{property.location}</span>
             </div>
             
-            {property.images && property.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {property.images.slice(1, 5).map((image, index) => (
-                  <img
-                    key={index}
-                    src={image}
-                    alt={`${property.title} ${index + 2}`}
-                    className="w-full h-20 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Property Information */}
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-3xl font-bold text-primary">
-                  {property.priceRange || `$${property.minPrice?.toLocaleString()} - $${property.maxPrice?.toLocaleString()}`}
-                </span>
-                {user?.role === "user" && (
-                  <Button
-                    onClick={handleAddToWishlist}
-                    disabled={addToWishlistMutation.isPending}
-                    className="bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border border-red-200"
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    Add to Wishlist
-                  </Button>
-                )}
-              </div>
-              
-              <h1 className="text-2xl font-bold text-neutral-900 mb-2">{property.title}</h1>
-              
-              <div className="flex items-center text-neutral-600">
-                <MapPin className="w-4 h-4 mr-2" />
-                <span>{property.location}</span>
-              </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-gray-500" />
+              <span className="text-lg font-semibold">{property.priceRange}</span>
             </div>
-
-            {/* Agent Information */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-4">Listed by</h3>
-                <div className="flex items-center space-x-4">
-                  <Avatar className="w-16 h-16">
-                    <AvatarImage src={property.agentImage} alt={property.agentName} />
-                    <AvatarFallback className="text-lg">
-                      {property.agentName?.charAt(0)?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h4 className="font-semibold text-neutral-900">{property.agentName}</h4>
-                    <p className="text-neutral-600">{property.agentEmail}</p>
-                    <p className="text-sm text-primary">Real Estate Agent</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Description */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-4">Description</h3>
-                <p className="text-neutral-700 leading-relaxed">
-                  {property.description || "No description available for this property."}
-                </p>
-              </CardContent>
-            </Card>
+            
+            <div className="flex items-center gap-2">
+              <User className="w-5 h-5 text-gray-500" />
+              <span>Agent: <span className="font-medium">{property.agentName}</span></span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-gray-500" />
+              <span>Listed: {new Date(property.createdAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button
+              onClick={handleAddToWishlist}
+              disabled={isAddingToWishlist || user.role !== 'user'}
+              className="w-full"
+              variant="outline"
+            >
+              <Heart className="w-4 h-4 mr-2" />
+              {isAddingToWishlist ? 'Adding...' : 'Add to Wishlist'}
+            </Button>
+            
+            {user.role !== 'user' && (
+              <p className="text-sm text-gray-500 text-center">
+                Only users can add properties to wishlist
+              </p>
+            )}
           </div>
         </div>
-
-        {/* Reviews Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">Property Reviews</CardTitle>
-              {user?.role === "user" && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button className="bg-primary hover:bg-blue-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Review
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add Your Review</DialogTitle>
-                    </DialogHeader>
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmitReview)} className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="rating"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Rating</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a rating" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="5">⭐⭐⭐⭐⭐ (5 stars)</SelectItem>
-                                  <SelectItem value="4">⭐⭐⭐⭐ (4 stars)</SelectItem>
-                                  <SelectItem value="3">⭐⭐⭐ (3 stars)</SelectItem>
-                                  <SelectItem value="2">⭐⭐ (2 stars)</SelectItem>
-                                  <SelectItem value="1">⭐ (1 star)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="description"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Review</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  placeholder="Share your experience with this property..."
-                                  className="min-h-[100px]"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <Button
-                          type="submit"
-                          className="w-full bg-primary hover:bg-blue-700"
-                          disabled={addReviewMutation.isPending}
-                        >
-                          {addReviewMutation.isPending ? "Submitting..." : "Submit Review"}
-                        </Button>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {reviewsLoading ? (
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-6">
-                      <Skeleton className="h-4 w-24 mb-4" />
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-3/4 mb-4" />
-                      <div className="flex items-center">
-                        <Skeleton className="h-10 w-10 rounded-full mr-3" />
-                        <Skeleton className="h-4 w-32" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="text-center py-12">
-                <Star className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No Reviews Yet</h3>
-                <p className="text-neutral-600">Be the first to review this property!</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {reviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Property Description */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Property Description</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-gray-700 leading-relaxed">
+            {property.description || 'This is a beautiful property in a prime location. Perfect for those looking for a modern living space with excellent amenities and connectivity. The property offers great value and is ideal for both investment and personal use.'}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Reviews Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Property Reviews</CardTitle>
+            <CardDescription>
+              See what others are saying about this property
+            </CardDescription>
+          </div>
+          
+          {user.role === 'user' && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button>Add Review</Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Your Review</DialogTitle>
+                  <DialogDescription>
+                    Share your thoughts about this property
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="rating">Rating</Label>
+                    <div className="flex gap-1 mt-1">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setRating(i + 1)}
+                          className="focus:outline-none"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="review">Your Review</Label>
+                    <Textarea
+                      id="review"
+                      placeholder="Write your review here..."
+                      value={reviewText}
+                      onChange={(e) => setReviewText(e.target.value)}
+                      className="mt-1"
+                      rows={4}
+                    />
+                  </div>
+                </div>
+                
+                <DialogFooter>
+                  <Button
+                    onClick={handleAddReview}
+                    disabled={isAddingReview}
+                    className="w-full"
+                  >
+                    {isAddingReview ? 'Submitting...' : 'Submit Review'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+        </CardHeader>
+        
+        <CardContent>
+          {reviews.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              No reviews yet. Be the first to review this property!
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {reviews.map((review) => (
+                <div key={review._id} className="border-b border-gray-200 pb-6 last:border-0">
+                  <div className="flex items-start gap-4">
+                    <img
+                      src={review.reviewerImage || '/default-avatar.png'}
+                      alt={review.reviewerName}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h4 className="font-semibold">{review.reviewerName}</h4>
+                        <div className="flex gap-1">
+                          {renderStars(review.rating)}
+                        </div>
+                        <span className="text-sm text-gray-500">
+                          {new Date(review.reviewTime).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      <p className="text-gray-700">{review.reviewText}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default PropertyDetails;

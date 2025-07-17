@@ -1,383 +1,436 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Target, Search, Star, MapPin, DollarSign, Check, Clock } from "lucide-react";
-import apiClient from "../../lib/api";
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { Switch } from '../../components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../../components/ui/alert-dialog';
+import { MapPin, DollarSign, User, Star, Eye, TrendingUp } from 'lucide-react';
+import { toast } from '../../hooks/use-toast';
+import api from '../../lib/api';
 
-export default function AdvertiseProperty() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState("");
+const AdvertiseProperty = () => {
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
 
-  // Fetch all verified properties
-  const { data: verifiedProperties = [], isLoading: verifiedLoading, error: verifiedError } = useQuery({
-    queryKey: ['/api/properties'],
-  });
+  useEffect(() => {
+    fetchVerifiedProperties();
+  }, []);
 
-  // Fetch advertised properties
-  const { data: advertisedProperties = [], isLoading: advertisedLoading } = useQuery({
-    queryKey: ['/api/properties/advertisements'],
-  });
-
-  // Advertise property mutation
-  const advertisePropertyMutation = useMutation({
-    mutationFn: async (propertyId) => {
-      const response = await apiClient.patch(`/api/properties/${propertyId}/advertise`);
-      return response.data;
-    },
-    onSuccess: () => {
-      toast({
-        title: "Property Advertised",
-        description: "Property has been successfully added to featured listings.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/properties/advertisements'] });
-    },
-    onError: (error) => {
+  const fetchVerifiedProperties = async () => {
+    try {
+      const response = await api.get('/properties/verified');
+      setProperties(response.data);
+    } catch (error) {
+      console.error('Error fetching verified properties:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to advertise property.",
+        description: "Failed to load verified properties",
         variant: "destructive",
       });
-    }
-  });
-
-  const handleAdvertiseProperty = (propertyId) => {
-    if (window.confirm("Are you sure you want to feature this property? It will appear in the homepage featured section.")) {
-      advertisePropertyMutation.mutate(propertyId);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  // Filter properties that are not already advertised
-  const availableProperties = verifiedProperties.filter(property => 
-    !property.isAdvertised && 
-    (!searchTerm || 
-     property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     property.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     property.agentName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
-  const getVerificationBadge = (status) => {
-    switch (status) {
-      case "verified":
-        return (
-          <Badge className="bg-secondary text-white">
-            <Check className="w-3 h-3 mr-1" />
-            Verified
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="bg-accent text-white border-accent">
-            <Clock className="w-3 h-3 mr-1" />
-            Pending
-          </Badge>
-        );
-      default:
-        return null;
+  const handleAdvertiseToggle = async (propertyId, currentStatus) => {
+    setProcessingId(propertyId);
+    try {
+      const newStatus = !currentStatus;
+      await api.patch(`/properties/advertise/${propertyId}`, { 
+        isAdvertised: newStatus 
+      });
+      
+      // Update local state
+      setProperties(properties.map(property => 
+        property._id === propertyId 
+          ? { ...property, isAdvertised: newStatus }
+          : property
+      ));
+      
+      toast({
+        title: "Success",
+        description: `Property ${newStatus ? 'added to' : 'removed from'} advertisements`,
+      });
+    } catch (error) {
+      console.error('Error toggling advertisement:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update advertisement status",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  if (verifiedError) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md mx-4">
-          <CardContent className="pt-6 text-center">
-            <p className="text-red-500 mb-4">Failed to load properties</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Advertise Property</h1>
+          <p className="text-gray-600 mt-2">Manage featured property advertisements</p>
+        </div>
+        
+        <div className="grid gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-300 rounded mb-4"></div>
+                <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                <div className="h-4 bg-gray-300 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
+  const advertisedProperties = properties.filter(p => p.isAdvertised);
+  const availableProperties = properties.filter(p => !p.isAdvertised);
+
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-inter font-bold text-3xl md:text-4xl text-neutral-900 mb-2">
-            Advertise Property
-          </h1>
-          <p className="text-lg text-neutral-600">
-            Promote verified properties as featured listings on the homepage
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Advertise Property</h1>
+        <p className="text-gray-600 mt-2">
+          {properties.length} verified properties • {advertisedProperties.length} currently advertised
+        </p>
+      </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mr-4">
-                  <Target className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-neutral-900">
-                    {verifiedLoading ? <Skeleton className="h-8 w-16" /> : verifiedProperties.length}
-                  </div>
-                  <div className="text-neutral-600">Verified Properties</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center mr-4">
-                  <Star className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-neutral-900">
-                    {advertisedLoading ? <Skeleton className="h-8 w-16" /> : advertisedProperties.length}
-                  </div>
-                  <div className="text-neutral-600">Currently Featured</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center mr-4">
-                  <DollarSign className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-neutral-900">
-                    {verifiedLoading ? <Skeleton className="h-8 w-16" /> : availableProperties.length}
-                  </div>
-                  <div className="text-neutral-600">Available to Feature</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Currently Featured Properties */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Star className="w-5 h-5 mr-2" />
-              Currently Featured Properties ({advertisedProperties.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {advertisedLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => (
-                  <Card key={i} className="overflow-hidden">
-                    <Skeleton className="h-32 w-full" />
-                    <div className="p-4">
-                      <Skeleton className="h-4 w-3/4 mb-2" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : advertisedProperties.length === 0 ? (
-              <div className="text-center py-8">
-                <Star className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">No Featured Properties</h3>
-                <p className="text-neutral-600">No properties are currently being featured on the homepage.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {advertisedProperties.map((property) => (
-                  <Card key={property.id} className="overflow-hidden">
-                    <div className="relative">
-                      <img 
-                        src={property.images?.[0] || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=200"} 
-                        alt={property.title}
-                        className="w-full h-32 object-cover"
-                      />
-                      <div className="absolute top-2 right-2">
-                        <Badge className="bg-yellow-500 text-white">
-                          <Star className="w-3 h-3 mr-1" />
-                          Featured
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="p-4">
-                      <h4 className="font-semibold text-neutral-900 mb-1 line-clamp-1">{property.title}</h4>
-                      <p className="text-sm text-neutral-600 mb-2 flex items-center">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {property.location}
-                      </p>
-                      <p className="text-sm font-semibold text-primary">
-                        {property.priceRange || `${formatCurrency(property.minPrice)} - ${formatCurrency(property.maxPrice)}`}
-                      </p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Available Properties to Advertise */}
+      {/* Summary Stats */}
+      <div className="grid md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Target className="w-5 h-5 mr-2" />
-                Available Properties ({availableProperties.length})
-              </div>
-              <div className="flex-1 max-w-md">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 w-4 h-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search properties..."
-                    className="pl-10"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {verifiedLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="flex items-center space-x-4">
-                    <Skeleton className="h-16 w-20 rounded" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
-                    <Skeleton className="h-8 w-20" />
-                  </div>
-                ))}
-              </div>
-            ) : availableProperties.length === 0 ? (
-              <div className="text-center py-12">
-                <Target className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-                  {searchTerm ? "No Properties Found" : "No Available Properties"}
-                </h3>
-                <p className="text-neutral-600">
-                  {searchTerm 
-                    ? "Try adjusting your search criteria."
-                    : "All verified properties are already featured or no verified properties exist."
-                  }
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Property</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Agent</TableHead>
-                      <TableHead>Price Range</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {availableProperties.map((property) => (
-                      <TableRow key={property.id}>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <img 
-                              src={property.images?.[0] || "https://images.unsplash.com/photo-1568605114967-8130f3a36994?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&h=60"} 
-                              alt={property.title}
-                              className="w-16 h-12 object-cover rounded mr-3"
-                            />
-                            <div>
-                              <div className="font-medium">{property.title}</div>
-                              <div className="text-sm text-neutral-500">Added {formatDate(property.createdAt)}</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <MapPin className="w-3 h-3 mr-1 text-neutral-400" />
-                            {property.location}
-                          </div>
-                        </TableCell>
-                        <TableCell>{property.agentName}</TableCell>
-                        <TableCell className="font-semibold text-primary">
-                          {property.priceRange || `${formatCurrency(property.minPrice)} - ${formatCurrency(property.maxPrice)}`}
-                        </TableCell>
-                        <TableCell>{getVerificationBadge(property.verificationStatus)}</TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAdvertiseProperty(property.id)}
-                            disabled={advertisePropertyMutation.isPending}
-                            className="bg-yellow-600 hover:bg-yellow-700"
-                          >
-                            <Star className="w-3 h-3 mr-1" />
-                            Feature
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {properties.length}
+            </div>
+            <div className="text-sm text-gray-600">Verified Properties</div>
           </CardContent>
         </Card>
-
-        {/* Help Information */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>About Featured Properties</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-2">What are Featured Properties?</h4>
-                <p className="text-sm text-blue-700">Featured properties appear prominently on the homepage, giving them increased visibility to potential buyers.</p>
-              </div>
-              
-              <div className="p-4 bg-green-50 rounded-lg">
-                <h4 className="font-medium text-green-900 mb-2">Eligibility Criteria</h4>
-                <p className="text-sm text-green-700">Only verified properties can be featured. Properties must have complete information and quality images.</p>
-              </div>
-              
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <h4 className="font-medium text-purple-900 mb-2">Marketing Impact</h4>
-                <p className="text-sm text-purple-700">Featured properties typically receive 3-5x more views than regular listings, leading to faster sales.</p>
-              </div>
-              
-              <div className="p-4 bg-orange-50 rounded-lg">
-                <h4 className="font-medium text-orange-900 mb-2">Best Practices</h4>
-                <p className="text-sm text-orange-700">Feature a diverse mix of properties across different price ranges and locations for maximum appeal.</p>
-              </div>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {advertisedProperties.length}
             </div>
+            <div className="text-sm text-gray-600">Advertised</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-orange-600">
+              {availableProperties.length}
+            </div>
+            <div className="text-sm text-gray-600">Available</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {advertisedProperties.length > 0 ? Math.round((advertisedProperties.length / properties.length) * 100) : 0}%
+            </div>
+            <div className="text-sm text-gray-600">Advertisement Rate</div>
           </CardContent>
         </Card>
       </div>
+
+      {properties.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-2">No verified properties found</h2>
+            <p className="text-gray-600">Only verified properties can be advertised. Please verify some properties first.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-8">
+          {/* Currently Advertised Properties */}
+          {advertisedProperties.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-yellow-500" />
+                <h2 className="text-2xl font-bold">Currently Advertised ({advertisedProperties.length})</h2>
+              </div>
+              
+              <div className="grid gap-6">
+                {advertisedProperties.map((property) => (
+                  <Card key={property._id} className="overflow-hidden border-yellow-200 bg-yellow-50/50">
+                    <CardContent className="p-0">
+                      <div className="grid lg:grid-cols-4 gap-0">
+                        {/* Property Image */}
+                        <div className="lg:col-span-1 relative">
+                          <img
+                            src={property.image}
+                            alt={property.title}
+                            className="w-full h-48 lg:h-full object-cover"
+                          />
+                          <div className="absolute top-2 left-2">
+                            <Badge className="bg-yellow-500 text-white">
+                              <Star className="w-3 h-3 mr-1" />
+                              Featured
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        {/* Property Details */}
+                        <div className="lg:col-span-2 p-6">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-bold text-xl">{property.title}</h3>
+                              <Badge variant="default" className="bg-green-600">
+                                Verified
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                <span className="text-gray-700">{property.location}</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-gray-500" />
+                                <span className="text-gray-700">Agent: {property.agentName}</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-gray-500" />
+                                <span className="font-semibold text-green-600 text-lg">
+                                  {property.priceRange}
+                                </span>
+                              </div>
+                              
+                              {property.description && (
+                                <p className="text-gray-600 text-sm line-clamp-2">
+                                  {property.description}
+                                </p>
+                              )}
+                              
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                {property.bedrooms && (
+                                  <span>{property.bedrooms} beds</span>
+                                )}
+                                {property.bathrooms && (
+                                  <span>{property.bathrooms} baths</span>
+                                )}
+                                {property.area && (
+                                  <span>{property.area} sq ft</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="lg:col-span-1 p-6 bg-yellow-50 flex flex-col justify-center">
+                          <div className="space-y-4">
+                            <div className="text-center">
+                              <div className="text-lg font-semibold text-yellow-700 mb-2">
+                                Featured
+                              </div>
+                              
+                              <div className="flex items-center justify-center gap-2 mb-4">
+                                <span className="text-sm">Advertisement</span>
+                                <Switch
+                                  checked={true}
+                                  onCheckedChange={() => handleAdvertiseToggle(property._id, true)}
+                                  disabled={processingId === property._id}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Button
+                                onClick={() => window.open(`/property-details/${property._id}`, '_blank')}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Preview
+                              </Button>
+                              
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    disabled={processingId === property._id}
+                                  >
+                                    Remove from Ads
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remove Advertisement</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to remove "{property.title}" from advertisements? It will no longer be featured on the homepage.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleAdvertiseToggle(property._id, true)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Remove from Ads
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available Properties for Advertisement */}
+          {availableProperties.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+                <h2 className="text-2xl font-bold">Available for Advertisement ({availableProperties.length})</h2>
+              </div>
+              
+              <div className="grid gap-6">
+                {availableProperties.map((property) => (
+                  <Card key={property._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <CardContent className="p-0">
+                      <div className="grid lg:grid-cols-4 gap-0">
+                        {/* Property Image */}
+                        <div className="lg:col-span-1">
+                          <img
+                            src={property.image}
+                            alt={property.title}
+                            className="w-full h-48 lg:h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Property Details */}
+                        <div className="lg:col-span-2 p-6">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <h3 className="font-bold text-xl">{property.title}</h3>
+                              <Badge variant="default" className="bg-green-600">
+                                Verified
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                <span className="text-gray-700">{property.location}</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-gray-500" />
+                                <span className="text-gray-700">Agent: {property.agentName}</span>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-gray-500" />
+                                <span className="font-semibold text-green-600">
+                                  {property.priceRange}
+                                </span>
+                              </div>
+                              
+                              {property.description && (
+                                <p className="text-gray-600 text-sm line-clamp-2">
+                                  {property.description}
+                                </p>
+                              )}
+                              
+                              <div className="flex items-center gap-4 text-sm text-gray-500">
+                                {property.bedrooms && (
+                                  <span>{property.bedrooms} beds</span>
+                                )}
+                                {property.bathrooms && (
+                                  <span>{property.bathrooms} baths</span>
+                                )}
+                                {property.area && (
+                                  <span>{property.area} sq ft</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2 text-xs text-gray-500">
+                              Added: {new Date(property.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="lg:col-span-1 p-6 bg-gray-50 flex flex-col justify-center">
+                          <div className="space-y-4">
+                            <div className="text-center">
+                              <div className="text-lg font-semibold text-gray-600 mb-2">
+                                Not Advertised
+                              </div>
+                              
+                              <div className="flex items-center justify-center gap-2 mb-4">
+                                <span className="text-sm">Advertisement</span>
+                                <Switch
+                                  checked={false}
+                                  onCheckedChange={() => handleAdvertiseToggle(property._id, false)}
+                                  disabled={processingId === property._id}
+                                />
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Button
+                                onClick={() => window.open(`/property-details/${property._id}`, '_blank')}
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Preview
+                              </Button>
+                              
+                              <Button
+                                onClick={() => handleAdvertiseToggle(property._id, false)}
+                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                size="sm"
+                                disabled={processingId === property._id}
+                              >
+                                <Star className="w-4 h-4 mr-2" />
+                                Add to Ads
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {advertisedProperties.length === 0 && availableProperties.length === 0 && (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">No properties available</h2>
+                <p className="text-gray-600">All verified properties are currently being advertised.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default AdvertiseProperty;
