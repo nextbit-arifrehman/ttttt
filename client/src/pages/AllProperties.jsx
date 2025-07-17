@@ -45,8 +45,8 @@ export default function AllProperties() {
         return [];
       }
     },
-    retry: 1,
-    retryDelay: 1000,
+    retry: 3,
+    retryDelay: 2000,
     staleTime: 5 * 60 * 1000,
     onError: (error) => {
       console.warn("Backend not available:", error.message);
