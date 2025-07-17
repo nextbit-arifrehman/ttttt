@@ -17,7 +17,7 @@ const apiClient = axios.create({
     'Content-Type': 'application/json'
   },
   timeout: 15000,
-  withCredentials: false
+  withCredentials: true
 });
 
 // Function to get the JWT token from localStorage

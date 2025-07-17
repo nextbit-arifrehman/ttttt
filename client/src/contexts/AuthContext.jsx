@@ -61,13 +61,22 @@ export const AuthProvider = ({ children }) => {
           // Try to sync with backend in the background
           try {
             console.log("Attempting to sync with backend...");
+            console.log("Backend URL:", apiClient.defaults.baseURL);
             const loginResponse = await apiClient.post("/auth/login", {
               idToken: idToken
             });
             
             if (loginResponse.status === 200) {
               const { user: dbUser } = loginResponse.data;
-              const mergedUser = { ...userWithDefaults, ...dbUser };
+              const mergedUser = { 
+                uid: dbUser.uid || userWithDefaults.uid,
+                email: dbUser.email || userWithDefaults.email,
+                displayName: dbUser.displayName || userWithDefaults.displayName,
+                photoURL: dbUser.photoURL || userWithDefaults.photoURL,
+                role: dbUser.role || "user",
+                verified: dbUser.verified || false,
+                isFraud: dbUser.isFraud || false
+              };
               localStorage.setItem('user', JSON.stringify(mergedUser));
               setUser(mergedUser);
               console.log("✅ User synced with MongoDB backend:", mergedUser.email, "Role:", mergedUser.role);
