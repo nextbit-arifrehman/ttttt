@@ -59,7 +59,7 @@ const Wishlist = () => {
   };
 
   const handleMakeOffer = (property) => {
-    navigate('/dashboard/make-offer', { state: { property } });
+    navigate(`/make-offer/${property.propertyId || property._id}`, { state: { property } });
   };
 
   const getUserInitials = (name) => {

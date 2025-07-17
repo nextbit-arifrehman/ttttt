@@ -44,6 +44,16 @@ const MakeOffer = () => {
   }
 
   const handleSubmitOffer = async () => {
+    // Role validation - Only users can buy properties
+    if (user.role !== 'user') {
+      toast({
+        title: "Access Denied",
+        description: "Only regular users can purchase properties. Agents and admins cannot buy properties.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validation
     if (!offerAmount || isNaN(offerAmount)) {
       toast({
@@ -78,7 +88,7 @@ const MakeOffer = () => {
 
     setIsSubmitting(true);
     try {
-      await api.post('/offers/create', {
+      await api.post('/api/offers', {
         propertyId: property.propertyId || property._id,
         propertyTitle: property.propertyTitle || property.title,
         propertyLocation: property.propertyLocation || property.location,
@@ -97,7 +107,7 @@ const MakeOffer = () => {
         description: "Your offer has been submitted successfully",
       });
 
-      navigate('/dashboard/property-bought');
+      navigate('/dashboard/user/property-bought');
     } catch (error) {
       console.error('Error submitting offer:', error);
       toast({

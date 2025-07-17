@@ -16,14 +16,18 @@ export default function RequestedProperties() {
 
   // Fetch offers for agent's properties
   const { data: offers = [], isLoading, error } = useQuery({
-    queryKey: ['/api/offers/agent', user?.id],
-    enabled: !!user?.id,
+    queryKey: ['/api/offers/agent/requested-properties', user?.uid],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/offers/agent/requested-properties');
+      return response.data;
+    },
+    enabled: !!user?.uid,
   });
 
   // Accept offer mutation
   const acceptOfferMutation = useMutation({
     mutationFn: async (offerId) => {
-      const response = await apiClient.patch(`/api/offers/${offerId}/accept`);
+      const response = await apiClient.patch(`/api/offers/agent/accept/${offerId}`, { action: 'accept' });
       return response.data;
     },
     onSuccess: () => {
@@ -31,7 +35,7 @@ export default function RequestedProperties() {
         title: "Offer Accepted",
         description: "The offer has been accepted successfully. Other offers for this property have been automatically rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/offers/agent', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/offers/agent/requested-properties', user?.uid] });
     },
     onError: (error) => {
       toast({
@@ -45,7 +49,7 @@ export default function RequestedProperties() {
   // Reject offer mutation
   const rejectOfferMutation = useMutation({
     mutationFn: async (offerId) => {
-      const response = await apiClient.patch(`/api/offers/${offerId}/reject`);
+      const response = await apiClient.patch(`/api/offers/agent/reject/${offerId}`, { action: 'reject' });
       return response.data;
     },
     onSuccess: () => {
@@ -53,7 +57,7 @@ export default function RequestedProperties() {
         title: "Offer Rejected",
         description: "The offer has been rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/offers/agent', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/offers/agent/requested-properties', user?.uid] });
     },
     onError: (error) => {
       toast({

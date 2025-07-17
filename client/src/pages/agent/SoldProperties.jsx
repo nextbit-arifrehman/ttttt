@@ -12,14 +12,34 @@ export default function SoldProperties() {
 
   // Fetch sold properties
   const { data: soldProperties = [], isLoading: soldLoading, error: soldError } = useQuery({
-    queryKey: ['/api/offers/agent', user?.id, 'sold'],
-    enabled: !!user?.id,
+    queryKey: ['/api/offers/agent/sold-properties', user?.uid],
+    queryFn: async () => {
+      const response = await fetch('/api/offers/agent/sold-properties', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch sold properties');
+      return response.json();
+    },
+    enabled: !!user?.uid,
   });
 
   // Fetch total sold amount
-  const { data: totalAmountData = { totalAmount: 0 }, isLoading: totalLoading } = useQuery({
-    queryKey: ['/api/offers/agent', user?.id, 'total-amount'],
-    enabled: !!user?.id,
+  const { data: totalAmountData = { totalSoldAmount: 0 }, isLoading: totalLoading } = useQuery({
+    queryKey: ['/api/offers/agent/total-sold-amount', user?.uid],
+    queryFn: async () => {
+      const response = await fetch('/api/offers/agent/total-sold-amount', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch total sold amount');
+      return response.json();
+    },
+    enabled: !!user?.uid,
   });
 
   const formatCurrency = (amount) => {
@@ -113,7 +133,7 @@ export default function SoldProperties() {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-neutral-900">
-                    {totalLoading ? <Skeleton className="h-8 w-24" /> : formatCurrency(totalAmountData.totalAmount)}
+                    {totalLoading ? <Skeleton className="h-8 w-24" /> : formatCurrency(totalAmountData.totalSoldAmount)}
                   </div>
                   <div className="text-neutral-600">Total Revenue</div>
                 </div>

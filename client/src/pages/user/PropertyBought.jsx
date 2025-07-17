@@ -22,7 +22,7 @@ const PropertyBought = () => {
 
   const fetchUserOffers = async () => {
     try {
-      const response = await api.get(`/offers/user/${user.email}`);
+      const response = await api.get('/api/offers/my-offers');
       setOffers(response.data);
     } catch (error) {
       console.error('Error fetching user offers:', error);
