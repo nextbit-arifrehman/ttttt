@@ -58,3 +58,4 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd elevenbackend && node index.js"
+waitForPort = 5000
