@@ -174,7 +174,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {advertisedProperties.slice(0, 4).map((property) => (
-              <PropertyCard key={property.id} property={property} />
+              <PropertyCard key={property._id || property.id} property={property} />
             ))}
           </div>
 
@@ -203,7 +203,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {latestReviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard key={review._id || review.id} review={review} />
             ))}
           </div>
         </div>
