@@ -60,10 +60,10 @@ const syncUserWithBackend = async (user) => {
         if (parts.length >= 3) {
           const replId = parts[1];
           const replSlug = parts[2];
-          return `https://3001-${replId}-${replSlug}.kirk.replit.dev/api/auth/login`;
+          return `https://5000-${replId}-${replSlug}.kirk.replit.dev/api/auth/login`;
         }
       }
-      return "http://localhost:3001/api/auth/login";
+      return "http://localhost:5000/api/auth/login";
     };
     
     const response = await fetch(getBackendURL(), {

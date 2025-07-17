@@ -4,8 +4,7 @@ import axios from 'axios';
 const getBackendURL = () => {
   const hostname = window.location.hostname;
   if (hostname.includes('replit.dev')) {
-    // For Replit environment, use relative path to backend
-    // This will use the same domain but proxy to backend
+    // For Replit environment, use relative path to leverage Vite proxy
     return '';
   }
   return 'http://localhost:5000';
