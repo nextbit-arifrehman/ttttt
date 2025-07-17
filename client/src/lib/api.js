@@ -4,13 +4,9 @@ import axios from 'axios';
 const getBackendURL = () => {
   const hostname = window.location.hostname;
   if (hostname.includes('replit.dev')) {
-    // Extract the replit ID from current URL and construct backend URL
-    const parts = hostname.split('-');
-    if (parts.length >= 3) {
-      const replId = parts[1];
-      const replSlug = parts[2];
-      return `https://3001-${replId}-${replSlug}.kirk.replit.dev/api`;
-    }
+    // For Replit environment, use the current hostname but replace the port with 3001
+    const baseHostname = hostname.replace(/^[^-]*/, '3001');
+    return `https://${baseHostname}/api`;
   }
   return 'http://localhost:3001/api';
 };
