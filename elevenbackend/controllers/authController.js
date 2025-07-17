@@ -54,11 +54,27 @@ exports.loginUser = async (req, res) => {
     // Verify Firebase ID token
     const decodedToken = await auth.verifyIdToken(idToken);
     const uid = decodedToken.uid;
+    const email = decodedToken.email;
+    const displayName = decodedToken.name || email.split('@')[0];
+    const photoURL = decodedToken.picture;
 
     // Get user from DB
-    const user = await User.findByUid(req.db, uid);
+    let user = await User.findByUid(req.db, uid);
+    
+    // If user doesn't exist, create them automatically
     if (!user) {
-      return res.status(404).json({ error: 'User not found in database' });
+      console.log(`Creating new user for ${email}`);
+      user = await User.create(req.db, {
+        uid: uid,
+        email: email,
+        displayName: displayName,
+        photoURL: photoURL,
+        role: 'user', // default role
+        isFraud: false,
+        createdAt: new Date(),
+        verified: false
+      });
+      console.log(`✅ New user created: ${email}`);
     }
 
     res.status(200).json({
