@@ -103,7 +103,7 @@ export default function PropertyCard({ property, onAddToWishlist, showWishlistBu
             </span>
           </div>
           
-          <Link to={`/property/${property.id}`}>
+          <Link to={`/property/${property._id || property.id}`}>
             <Button variant="ghost" size="sm" className="text-primary hover:text-blue-700">
               View Details
               <ArrowRight className="w-4 h-4 ml-1" />

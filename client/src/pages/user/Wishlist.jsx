@@ -22,7 +22,7 @@ const Wishlist = () => {
 
   const fetchWishlist = async () => {
     try {
-      const response = await api.get(`/wishlist/${user.email}`);
+      const response = await api.get(`/api/wishlist/${user.email}`);
       setWishlistItems(response.data);
     } catch (error) {
       console.error('Error fetching wishlist:', error);
@@ -39,7 +39,7 @@ const Wishlist = () => {
   const handleRemoveFromWishlist = async (itemId) => {
     setRemovingId(itemId);
     try {
-      await api.delete(`/wishlist/remove/${itemId}`);
+      await api.delete(`/api/wishlist/remove/${itemId}`);
       setWishlistItems(wishlistItems.filter(item => item._id !== itemId));
       
       toast({

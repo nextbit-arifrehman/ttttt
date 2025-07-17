@@ -25,13 +25,23 @@ const PropertyDetails = () => {
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
 
   useEffect(() => {
-    fetchPropertyDetails();
-    fetchPropertyReviews();
+    console.log('PropertyDetails useParams:', { id });
+    if (id) {
+      fetchPropertyDetails();
+      fetchPropertyReviews();
+    }
   }, [id]);
 
   const fetchPropertyDetails = async () => {
+    if (!id) {
+      console.error('Property ID is undefined');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      const response = await api.get(`/properties/${id}`);
+      console.log('Fetching property details for ID:', id);
+      const response = await api.get(`/api/properties/${id}`);
       setProperty(response.data);
     } catch (error) {
       console.error('Error fetching property details:', error);
@@ -47,7 +57,7 @@ const PropertyDetails = () => {
 
   const fetchPropertyReviews = async () => {
     try {
-      const response = await api.get(`/reviews/property/${id}`);
+      const response = await api.get(`/api/reviews/property/${id}`);
       setReviews(response.data);
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -75,8 +85,13 @@ const PropertyDetails = () => {
 
     setIsAddingToWishlist(true);
     try {
-      await api.post('/wishlist/add', {
-        propertyId: property._id,
+      await api.post('/api/wishlist', {
+        propertyId: property._id || property.id,
+        propertyTitle: property.title,
+        propertyLocation: property.location,
+        propertyImage: property.image || property.images?.[0],
+        agentName: property.agentName,
+        agentEmail: property.agentEmail,
         userEmail: user.email
       });
       
@@ -126,7 +141,7 @@ const PropertyDetails = () => {
 
     setIsAddingReview(true);
     try {
-      const response = await api.post('/reviews/add', {
+      const response = await api.post('/api/reviews', {
         propertyId: property._id,
         propertyTitle: property.title,
         agentName: property.agentName,
