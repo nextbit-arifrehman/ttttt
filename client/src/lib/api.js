@@ -1,7 +1,22 @@
 import axios from 'axios';
 
+// Get the correct backend URL based on environment
+const getBackendURL = () => {
+  const hostname = window.location.hostname;
+  if (hostname.includes('replit.dev')) {
+    // Extract the replit ID from current URL and construct backend URL
+    const parts = hostname.split('-');
+    if (parts.length >= 3) {
+      const replId = parts[1];
+      const replSlug = parts[2];
+      return `https://3001-${replId}-${replSlug}.kirk.replit.dev/api`;
+    }
+  }
+  return 'http://localhost:3001/api';
+};
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3001/api',
+  baseURL: getBackendURL(),
   headers: {
     'Content-Type': 'application/json'
   },

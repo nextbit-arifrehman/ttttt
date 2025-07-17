@@ -60,6 +60,7 @@ export const AuthProvider = ({ children }) => {
           
           // Try to sync with backend in the background
           try {
+            console.log("Attempting to sync with backend...");
             const loginResponse = await apiClient.post("/auth/login", {
               idToken: idToken
             });
@@ -69,10 +70,12 @@ export const AuthProvider = ({ children }) => {
               const mergedUser = { ...userWithDefaults, ...dbUser };
               localStorage.setItem('user', JSON.stringify(mergedUser));
               setUser(mergedUser);
-              console.log("✅ User synced with MongoDB backend");
+              console.log("✅ User synced with MongoDB backend:", mergedUser.email, "Role:", mergedUser.role);
             }
           } catch (loginError) {
             console.log("Backend sync failed, using Firebase user data");
+            console.error("Backend sync error:", loginError);
+            console.warn("Backend sync failed, using Firebase user data:", loginError.message);
             // User data already set above, no need to retry
           }
         } catch (error) {
