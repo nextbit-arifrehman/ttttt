@@ -9,25 +9,18 @@ import {
   updateProfile,
 } from "firebase/auth";
 
-// Debug: log env variables to verify they are loading
-console.log("Firebase Web SDK initializing...");
-console.log("Current domain:", window.location.hostname);
-console.log("Project ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
-
-// Validate required environment variables
-if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_PROJECT_ID || !import.meta.env.VITE_FIREBASE_APP_ID) {
-  console.error("Missing required Firebase configuration. Please check your environment variables.");
-}
-
-// Firebase configuration using Vite environment variables
+// Firebase configuration - using your provided credentials
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDsut7TB-t5mBaSQNFO8iDZuY_fcldJmBo",
+  authDomain: "void-5a292.firebaseapp.com",
+  projectId: "void-5a292",
+  storageBucket: "void-5a292.firebasestorage.app",
+  messagingSenderId: "752168297291",
+  appId: "1:752168297291:web:78a8c8f93961c5ba6abece"
 };
+
+console.log("Firebase Web SDK initializing...");
+console.log("Project ID:", firebaseConfig.projectId);
 
 // Initialize Firebase Web SDK
 let app;
@@ -37,64 +30,22 @@ try {
   auth = getAuth(app);
   console.log("✅ Firebase Web SDK initialized successfully");
 } catch (error) {
-  console.error("❌ Firebase Web SDK initialization failed:", error);
-  // Create a mock auth object to prevent crashes
-  auth = {
-    currentUser: null,
-    onAuthStateChanged: (callback) => {
-      setTimeout(() => callback(null), 100);
-      return () => {};
-    }
-  };
+  if (error.code === 'app/duplicate-app') {
+    // App already exists, just get the auth instance
+    auth = getAuth();
+    console.log("✅ Firebase Web SDK already initialized, using existing instance");
+  } else {
+    console.error("❌ Firebase Web SDK initialization failed:", error);
+    throw error;
+  }
 }
 
 export { auth };
 
 // Set up Google provider
 const googleProvider = new GoogleAuthProvider();
-// Add required scopes for Google sign-in
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
-
-// Auth methods
-export const signInWithGoogle = async () => {
-  console.log("Attempting Google sign-in...");
-  try {
-    // Check if Firebase is properly initialized
-    if (!auth || !auth.currentUser === undefined) {
-      throw new Error("Firebase not properly initialized");
-    }
-    
-    const result = await signInWithPopup(auth, googleProvider);
-    console.log("Google sign-in successful:", result.user.email);
-    
-    // Send user data to backend for storage
-    await syncUserWithBackend(result.user);
-    return result;
-  } catch (error) {
-    console.error("Google sign-in error:", error);
-    
-    // For development/demo purposes, create a mock user
-    if (error.code === "auth/api-key-not-valid" || error.code === "auth/invalid-api-key") {
-      console.log("Creating demo user for testing...");
-      const mockUser = {
-        uid: "demo-user-" + Date.now(),
-        email: "demo@example.com",
-        displayName: "Demo User",
-        photoURL: "https://via.placeholder.com/150",
-        emailVerified: true
-      };
-      
-      // Store in localStorage for demo
-      localStorage.setItem("demo-user", JSON.stringify(mockUser));
-      localStorage.setItem("demo-token", "demo-jwt-token");
-      
-      return { user: mockUser };
-    }
-    
-    throw error;
-  }
-};
 
 // Helper function to sync user with backend
 const syncUserWithBackend = async (user) => {
@@ -110,43 +61,68 @@ const syncUserWithBackend = async (user) => {
       const data = await response.json();
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("token", idToken);
-      console.log("User synced with backend successfully");
+      console.log("✅ User synced with backend successfully");
+    } else {
+      console.log("Backend sync failed, but user authenticated successfully");
     }
   } catch (error) {
-    console.error("Backend sync failed:", error);
+    console.error("Backend sync error:", error);
   }
 };
 
+// Google Sign-in
+export const signInWithGoogle = async () => {
+  console.log("Attempting Google sign-in...");
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    console.log("✅ Google sign-in successful:", result.user.email);
+    
+    // Sync user with backend
+    await syncUserWithBackend(result.user);
+    
+    return result;
+  } catch (error) {
+    console.error("Google sign-in error:", error);
+    throw error;
+  }
+};
+
+// Email/Password Sign-in
 export const signInWithEmail = async (email, password) => {
   console.log("Attempting email sign-in for:", email);
   try {
     const result = await signInWithEmailAndPassword(auth, email, password);
-    console.log("Email sign-in successful:", result.user.email);
+    console.log("✅ Email sign-in successful:", result.user.email);
     
-    // Send user data to backend for storage
+    // Sync user with backend
     await syncUserWithBackend(result.user);
+    
     return result;
   } catch (error) {
     console.error("Email sign-in error:", error);
+    throw error;
+  }
+};
+
+// Email/Password Sign-up
+export const signUpWithEmail = async (email, password, displayName) => {
+  console.log("Attempting email sign-up for:", email);
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
     
-    // For development/demo purposes, create a mock user
-    if (error.code === "auth/api-key-not-valid" || error.code === "auth/invalid-api-key") {
-      console.log("Creating demo user for testing...");
-      const mockUser = {
-        uid: "demo-user-email-" + Date.now(),
-        email: email,
-        displayName: email.split('@')[0],
-        photoURL: "https://via.placeholder.com/150",
-        emailVerified: true
-      };
-      
-      // Store in localStorage for demo
-      localStorage.setItem("demo-user", JSON.stringify(mockUser));
-      localStorage.setItem("demo-token", "demo-jwt-token");
-      
-      return { user: mockUser };
+    // Update profile with display name
+    if (displayName) {
+      await updateProfile(result.user, { displayName });
     }
     
+    console.log("✅ Email sign-up successful:", result.user.email);
+    
+    // Sync user with backend
+    await syncUserWithBackend(result.user);
+    
+    return result;
+  } catch (error) {
+    console.error("Email sign-up error:", error);
     throw error;
   }
 };
@@ -156,6 +132,10 @@ export const registerWithEmail = async (email, password) => {
   try {
     const result = await createUserWithEmailAndPassword(auth, email, password);
     console.log("Email registration successful:", result.user.email);
+    
+    // Sync user with backend
+    await syncUserWithBackend(result.user);
+    
     return result;
   } catch (error) {
     console.error("Email registration error:", error);
