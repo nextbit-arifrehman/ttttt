@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { registerWithEmail, signInWithGoogle, updateUserProfile } from "../lib/firebase";
+import { signUpWithEmail, signInWithGoogle, updateUserProfile } from "../lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Mail, Lock, Eye, EyeOff, User, UserCheck } from "lucide-react";
 
@@ -56,12 +56,7 @@ export default function Register() {
     }
 
     try {
-      const userCredential = await registerWithEmail(formData.email, formData.password);
-      
-      // Update user profile
-      await updateUserProfile(userCredential.user, {
-        displayName: formData.displayName
-      });
+      const userCredential = await signUpWithEmail(formData.email, formData.password, formData.displayName);
       
       toast({
         title: "Account Created!",

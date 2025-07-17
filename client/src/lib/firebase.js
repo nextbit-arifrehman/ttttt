@@ -51,7 +51,22 @@ googleProvider.addScope('profile');
 const syncUserWithBackend = async (user) => {
   try {
     const idToken = await user.getIdToken();
-    const response = await fetch("http://localhost:3001/api/auth/login", {
+    
+    // Get backend URL based on environment
+    const getBackendURL = () => {
+      const hostname = window.location.hostname;
+      if (hostname.includes('replit.dev')) {
+        const parts = hostname.split('-');
+        if (parts.length >= 3) {
+          const replId = parts[1];
+          const replSlug = parts[2];
+          return `https://3001-${replId}-${replSlug}.kirk.replit.dev/api/auth/login`;
+        }
+      }
+      return "http://localhost:3001/api/auth/login";
+    };
+    
+    const response = await fetch(getBackendURL(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken })
