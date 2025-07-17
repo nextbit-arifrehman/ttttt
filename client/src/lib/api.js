@@ -6,7 +6,7 @@ const getBackendURL = () => {
   if (hostname.includes('replit.dev')) {
     // For Replit environment, use the proper backend port mapping
     // Port 5000 is mapped to port 80 in .replit configuration
-    const baseHostname = hostname.replace(/^[^-]*/, '80');
+    const baseHostname = hostname.replace(/^[^-]*/, '5000');
     return `https://${baseHostname}/api`;
   }
   return 'http://localhost:5000/api';
