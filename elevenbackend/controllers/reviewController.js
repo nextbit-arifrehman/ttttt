@@ -42,6 +42,12 @@ exports.addReview = async (req, res) => {
 exports.getReviewsByProperty = async (req, res) => {
   try {
     const propertyId = req.params.propertyId;
+    
+    // Validate propertyId
+    if (!propertyId || propertyId === 'undefined') {
+      return res.status(400).json({ error: 'Invalid property ID' });
+    }
+
     const reviews = await Review.getReviewsByPropertyId(req.db, propertyId);
 
     res.json(reviews);

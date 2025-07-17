@@ -319,7 +319,7 @@ export default function AllProperties() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {sortedProperties.map((property) => (
               <PropertyCard
-                key={property.id}
+                key={property._id}
                 property={property}
                 onAddToWishlist={handleAddToWishlist}
                 showWishlistButton={user?.role === "user"}

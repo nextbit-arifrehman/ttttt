@@ -101,6 +101,15 @@ exports.getAllVerifiedProperties = async (req, res) => {
 exports.getPropertyDetails = async (req, res) => {
   try {
     const propertyId = req.params.id;
+    
+    // Validate propertyId
+    if (!propertyId || propertyId === 'undefined') {
+      return res.status(400).json({ 
+        error: 'Invalid property ID',
+        code: 'INVALID_PROPERTY_ID' 
+      });
+    }
+
     const property = await Property.getPropertyById(req.db, propertyId);
 
     if (!property) {

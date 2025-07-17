@@ -13,6 +13,10 @@ const Review = {
   },
 
   getReviewsByPropertyId: async (db, propertyId) => {
+    // Validate ObjectId format
+    if (!propertyId || propertyId === 'undefined' || !ObjectId.isValid(propertyId)) {
+      return [];
+    }
     return db.collection(COLLECTION_NAME).find({ propertyId: new ObjectId(propertyId) }).toArray();
   },
 
