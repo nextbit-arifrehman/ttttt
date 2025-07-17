@@ -139,12 +139,13 @@ The architecture prioritizes type safety, developer experience, and scalability 
 - Successfully migrated project from Replit Agent to Replit environment
 - Installed all required Node.js packages and dependencies for both frontend and backend
 - Configured client-server architecture with proper port separation:
-  - Frontend (React/Vite): Running on port 5173
-  - Backend (Express/Node.js): Running on port 3001
-- Updated frontend API client to use local backend (localhost:3001) instead of external ngrok URL
+  - Frontend (React/Vite): Running on port 3000
+  - Backend (Express/Node.js): Running on port 5000
+- Updated frontend API client to use local backend (localhost:5000) instead of external ngrok URL
 - Fixed backend middleware syntax errors and dependency issues
 - Connected MongoDB database successfully with existing credentials
 - Implemented proper workflow configuration for both services
+- Updated CORS configuration to allow frontend-backend communication
 - Both frontend and backend servers now running smoothly in Replit environment
 
 ### Authentication & MongoDB Integration (July 17, 2025)

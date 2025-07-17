@@ -29,11 +29,10 @@ export default {
   },
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: 3000,
     allowedHosts: [
       "localhost",
       "127.0.0.1",
-      "6d0c7ec1-2622-4674-813d-d9e55dee066b-00-y600wd198i0e.spock.replit.dev",
       ".replit.dev",
       ".replit.co"
     ],

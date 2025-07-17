@@ -36,26 +36,26 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Backend Server"
+args = "Frontend"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Frontend Server"
+args = "Backend"
 
 [[workflows.workflow]]
-name = "Backend Server"
+name = "Frontend"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd elevenbackend && npm start"
-waitForPort = 3001
+args = "npm run dev -- --host 0.0.0.0 --port 3000"
+waitForPort = 3000
 
 [[workflows.workflow]]
-name = "Frontend Server"
+name = "Backend"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev -- --host 0.0.0.0 --port 5000"
+args = "cd elevenbackend && PORT=5000 npm start"
 waitForPort = 5000
