@@ -19,13 +19,6 @@
 
 
 
-
-
-
-
-
-
-
 Don't use any typescript or ts,tsx file it's prohabited to use
  tech stack for fronted: 
 ✅ Frontend Tech Stack (Complete List)
