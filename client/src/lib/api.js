@@ -6,15 +6,16 @@ const getBackendURL = () => {
   if (hostname.includes('replit.dev')) {
     // For Replit environment, use relative path to backend
     // This will use the same domain but proxy to backend
-    return '/api';
+    return '';
   }
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5000';
 };
 
 const apiClient = axios.create({
   baseURL: getBackendURL(),
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
   },
   timeout: 15000,
   withCredentials: true

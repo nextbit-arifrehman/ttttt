@@ -34,12 +34,24 @@ export default function AllProperties() {
           ? `/api/properties/search?location=${encodeURIComponent(searchLocation)}`
           : '/api/properties/public';
         console.log('Fetching properties from:', url);
-        const response = await apiClient.get(url);
+        console.log('Full URL being requested:', window.location.origin + url);
+        
+        // Add explicit headers for browser request
+        const response = await apiClient.get(url, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        });
+        
         setBackendAvailable(true);
         console.log('Properties loaded successfully:', response.data?.length || 0, 'properties');
+        console.log('Response data:', response.data);
         return response.data || [];
       } catch (error) {
         console.error('Failed to fetch properties:', error);
+        console.error('Error details:', error.response?.status, error.response?.data);
         setBackendAvailable(false);
         // Return empty array to show "Data Not Available" message
         return [];
