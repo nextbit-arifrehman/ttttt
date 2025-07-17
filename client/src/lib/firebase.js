@@ -10,9 +10,9 @@ import {
 } from "firebase/auth";
 
 // Debug: log env variables to verify they are loading
-// Firebase configuration is ready
-console.log("Firebase initialized successfully");
+console.log("Firebase Web SDK initializing...");
 console.log("Current domain:", window.location.hostname);
+console.log("Project ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
 
 // Validate required environment variables
 if (!import.meta.env.VITE_FIREBASE_API_KEY || !import.meta.env.VITE_FIREBASE_PROJECT_ID || !import.meta.env.VITE_FIREBASE_APP_ID) {
@@ -29,9 +29,26 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+// Initialize Firebase Web SDK
+let app;
+let auth;
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  console.log("✅ Firebase Web SDK initialized successfully");
+} catch (error) {
+  console.error("❌ Firebase Web SDK initialization failed:", error);
+  // Create a mock auth object to prevent crashes
+  auth = {
+    currentUser: null,
+    onAuthStateChanged: (callback) => {
+      setTimeout(() => callback(null), 100);
+      return () => {};
+    }
+  };
+}
+
+export { auth };
 
 // Set up Google provider
 const googleProvider = new GoogleAuthProvider();
