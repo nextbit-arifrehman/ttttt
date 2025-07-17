@@ -1,4 +1,4 @@
-"""// middlewares/verifyJWT.js
+// middlewares/verifyJWT.js
 const { auth } = require('../utils/firebaseAdmin');
 
 const verifyJWT = async (req, res, next) => {
@@ -26,4 +26,4 @@ const verifyJWT = async (req, res, next) => {
   }
 };
 
-module.exports = verifyJWT;""
+module.exports = verifyJWT;
