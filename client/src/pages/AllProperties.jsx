@@ -140,7 +140,7 @@ export default function AllProperties() {
               <div className="bg-neutral-50 p-4 rounded-lg mb-4 text-sm text-left">
                 <p className="font-medium mb-2">Technical details:</p>
                 <p className="text-neutral-600">
-                  • Backend API: https://e39e5546163d.ngrok-free.app<br/>
+                  • Backend API: http://localhost:3001<br/>
                   • Issue: {error?.message || "Network connectivity"}<br/>
                   • Status: Authentication working, property data unavailable
                 </p>
