@@ -52,16 +52,12 @@ const syncUserWithBackend = async (user) => {
   try {
     const idToken = await user.getIdToken();
     
-    // Get backend URL based on environment
+    // Get backend URL based on environment - use proxy in Replit
     const getBackendURL = () => {
       const hostname = window.location.hostname;
       if (hostname.includes('replit.dev')) {
-        const parts = hostname.split('-');
-        if (parts.length >= 3) {
-          const replId = parts[1];
-          const replSlug = parts[2];
-          return `https://5000-${replId}-${replSlug}.kirk.replit.dev/api/auth/login`;
-        }
+        // Use relative URL to leverage Vite proxy
+        return "/api/auth/login";
       }
       return "http://localhost:5000/api/auth/login";
     };
