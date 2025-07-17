@@ -4,11 +4,12 @@ import axios from 'axios';
 const getBackendURL = () => {
   const hostname = window.location.hostname;
   if (hostname.includes('replit.dev')) {
-    // For Replit environment, run backend on port 3001 which is already exposed
-    const baseHostname = hostname.replace(/^[^-]*/, '3001');
+    // For Replit environment, use the proper backend port mapping
+    // Port 5000 is mapped to port 80 in .replit configuration
+    const baseHostname = hostname.replace(/^[^-]*/, '80');
     return `https://${baseHostname}/api`;
   }
-  return 'http://localhost:3001/api';
+  return 'http://localhost:5000/api';
 };
 
 const apiClient = axios.create({
