@@ -23,6 +23,13 @@ const User = {
     const result = await db.collection(COLLECTION_NAME).insertOne(userData);
     // Find and return the newly created document
     return db.collection(COLLECTION_NAME).findOne({ _id: result.insertedId });
+  },
+
+  updateLastLogin: async (db, uid) => {
+    return db.collection(COLLECTION_NAME).updateOne(
+      { uid }, 
+      { $set: { lastLoginAt: new Date() } }
+    );
   }
 };
 

@@ -124,16 +124,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const refreshUserData = async () => {
-    if (!user) return;
+    if (!user || !auth.currentUser) {
+      console.log("No user or Firebase auth not available for refresh");
+      return user;
+    }
     
     try {
-      const idToken = await auth.currentUser.getIdToken();
-      const loginResponse = await apiClient.post("/auth/login", {
+      console.log("Getting fresh Firebase ID token...");
+      const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+      
+      console.log("Calling backend /api/auth/login with fresh token...");
+      const loginResponse = await apiClient.post("/api/auth/login", {
         idToken: idToken
       });
       
       if (loginResponse.status === 200) {
         const { user: dbUser } = loginResponse.data;
+        console.log("Backend response:", dbUser);
+        
         const mergedUser = { 
           uid: dbUser.uid || user.uid,
           email: dbUser.email || user.email,
@@ -149,7 +157,7 @@ export const AuthProvider = ({ children }) => {
         return mergedUser;
       }
     } catch (error) {
-      console.log("Failed to refresh user data from backend:", error.message);
+      console.error("Failed to refresh user data from backend:", error.response?.data || error.message);
       return user; // Return current user if refresh fails
     }
   };
