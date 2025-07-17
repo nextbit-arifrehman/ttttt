@@ -12,6 +12,9 @@ router.get('/advertisements', propertyController.getAdvertisedProperties);
 // Public route for searching properties by location
 router.get('/search', propertyController.searchPropertiesByLocation);
 
+// Public route for getting all verified properties (no auth required)
+router.get('/public', propertyController.getAllVerifiedProperties);
+
 // Protected routes - user must be logged in
 router.use(verifyJWT);
 

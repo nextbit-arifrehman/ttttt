@@ -27,14 +27,23 @@ export default function AllProperties() {
 
   // Fetch all verified properties
   const { data: properties = [], isLoading, error } = useQuery({
-    queryKey: searchLocation ? ['/api/properties/search', { location: searchLocation }] : ['/api/properties'],
+    queryKey: searchLocation ? ['/api/properties/search', { location: searchLocation }] : ['/api/properties/public'],
     queryFn: async () => {
-      const url = searchLocation 
-        ? `/api/properties/search?location=${encodeURIComponent(searchLocation)}`
-        : '/api/properties';
-      const response = await apiClient.get(url);
-      setBackendAvailable(true);
-      return response.data;
+      try {
+        const url = searchLocation 
+          ? `/api/properties/search?location=${encodeURIComponent(searchLocation)}`
+          : '/api/properties/public';
+        console.log('Fetching properties from:', url);
+        const response = await apiClient.get(url);
+        setBackendAvailable(true);
+        console.log('Properties loaded successfully:', response.data?.length || 0, 'properties');
+        return response.data || [];
+      } catch (error) {
+        console.error('Failed to fetch properties:', error);
+        setBackendAvailable(false);
+        // Return empty array to show "Data Not Available" message
+        return [];
+      }
     },
     retry: 1,
     retryDelay: 1000,
@@ -258,24 +267,40 @@ export default function AllProperties() {
           <Card>
             <CardContent className="pt-6 text-center py-12">
               <Filter className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-neutral-900 mb-2">No Properties Found</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 mb-2">
+                {backendAvailable ? "No Properties Available" : "Data Not Available"}
+              </h3>
               <p className="text-neutral-600 mb-4">
-                {searchLocation 
-                  ? `No properties found matching "${searchLocation}". Try a different location.`
-                  : "No verified properties are currently available."
-                }
+                {backendAvailable ? (
+                  searchLocation 
+                    ? `No properties found matching "${searchLocation}". Try a different location.`
+                    : "No verified properties are currently available in the database. Properties will appear here once agents add them and they're verified by admin."
+                ) : (
+                  "Property data is temporarily unavailable. The backend database connection is not working properly."
+                )}
               </p>
-              {searchLocation && (
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                {searchLocation && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchLocation("");
+                      queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+                    }}
+                  >
+                    Clear Search
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSearchLocation("");
                     queryClient.invalidateQueries({ queryKey: ['/api/properties'] });
+                    window.location.reload();
                   }}
                 >
-                  Clear Search
+                  Refresh
                 </Button>
-              )}
+              </div>
             </CardContent>
           </Card>
         ) : (
