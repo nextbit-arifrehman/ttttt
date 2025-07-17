@@ -32,69 +32,75 @@ export const AuthProvider = ({ children }) => {
           
           // Create user object with Firebase data and default role
           const userWithDefaults = {
-            ...firebaseUser,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+            photoURL: firebaseUser.photoURL,
             role: "user",
             verified: false,
-            id: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            photoURL: firebaseUser.photoURL
+            isFraud: false
           };
           
-          // Set user immediately for better UX
-          setUser(userWithDefaults);
+          // Check if user data exists in localStorage first
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            try {
+              const parsedUser = JSON.parse(storedUser);
+              setUser(parsedUser);
+              console.log("✅ User loaded from localStorage");
+            } catch (e) {
+              console.warn("Invalid user data in localStorage, using Firebase data");
+              setUser(userWithDefaults);
+            }
+          } else {
+            // Set user immediately for better UX
+            setUser(userWithDefaults);
+            localStorage.setItem('user', JSON.stringify(userWithDefaults));
+          }
           
           // Try to sync with backend in the background
           try {
-            // First try login since user might already exist
             const loginResponse = await apiClient.post("/auth/login", {
-              email: firebaseUser.email,
-              idToken: idToken,
-              displayName: firebaseUser.displayName,
-              photoURL: firebaseUser.photoURL
+              idToken: idToken
             });
             
             if (loginResponse.status === 200) {
-              const { user: dbUser, token } = loginResponse.data;
-              localStorage.setItem('backendToken', token);
-              setUser({ ...firebaseUser, ...dbUser });
-              console.log("Successfully synced with MongoDB backend (existing user)");
+              const { user: dbUser } = loginResponse.data;
+              const mergedUser = { ...userWithDefaults, ...dbUser };
+              localStorage.setItem('user', JSON.stringify(mergedUser));
+              setUser(mergedUser);
+              console.log("✅ User synced with MongoDB backend");
             }
           } catch (loginError) {
-            // If login fails, try registration
-            try {
-              const response = await apiClient.post("/auth/register", {
-                email: firebaseUser.email,
-                idToken: idToken,
-                displayName: firebaseUser.displayName,
-                photoURL: firebaseUser.photoURL,
-                role: "user"
-              });
-              
-              if (response.status === 201 || response.status === 200) {
-                const { user: dbUser, token } = response.data;
-                localStorage.setItem('backendToken', token);
-                setUser({ ...firebaseUser, ...dbUser });
-                console.log("Successfully registered new user in MongoDB backend");
-              }
-            } catch (syncError) {
-              console.warn("Backend sync failed, using Firebase user data:", syncError.message);
-              // Continue with Firebase user data - backend is optional
-            }
+            console.log("Backend sync failed, using Firebase user data");
+            // User data already set above, no need to retry
           }
         } catch (error) {
           console.error("Error processing user authentication:", error);
-          setUser(null);
+          // Create fallback user data
+          const fallbackUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+            photoURL: firebaseUser.photoURL,
+            role: "user",
+            verified: false,
+            isFraud: false
+          };
+          setUser(fallbackUser);
+          localStorage.setItem('user', JSON.stringify(fallbackUser));
         }
       } else {
+        // User is signed out
         setUser(null);
         localStorage.removeItem('token');
-        localStorage.removeItem('backendToken');
+        localStorage.removeItem('user');
+        console.log("User signed out");
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   const value = {
@@ -102,9 +108,5 @@ export const AuthProvider = ({ children }) => {
     loading
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

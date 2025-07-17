@@ -63,10 +63,34 @@ const syncUserWithBackend = async (user) => {
       localStorage.setItem("token", idToken);
       console.log("✅ User synced with backend successfully");
     } else {
-      console.log("Backend sync failed, but user authenticated successfully");
+      console.log("Backend sync failed, using Firebase user data");
+      // Store Firebase user data as fallback
+      const firebaseUser = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || user.email.split('@')[0],
+        photoURL: user.photoURL,
+        role: 'user', // Default role
+        isFraud: false
+      };
+      localStorage.setItem("user", JSON.stringify(firebaseUser));
+      localStorage.setItem("token", idToken);
     }
   } catch (error) {
     console.error("Backend sync error:", error);
+    console.warn("Backend sync failed, using Firebase user data:", error.message);
+    
+    // Store Firebase user data as fallback
+    const firebaseUser = {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email.split('@')[0],
+      photoURL: user.photoURL,
+      role: 'user', // Default role
+      isFraud: false
+    };
+    localStorage.setItem("user", JSON.stringify(firebaseUser));
+    localStorage.setItem("token", await user.getIdToken());
   }
 };
 
