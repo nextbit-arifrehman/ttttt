@@ -123,9 +123,41 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  const refreshUserData = async () => {
+    if (!user) return;
+    
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const loginResponse = await apiClient.post("/auth/login", {
+        idToken: idToken
+      });
+      
+      if (loginResponse.status === 200) {
+        const { user: dbUser } = loginResponse.data;
+        const mergedUser = { 
+          uid: dbUser.uid || user.uid,
+          email: dbUser.email || user.email,
+          displayName: dbUser.displayName || user.displayName,
+          photoURL: dbUser.photoURL || user.photoURL,
+          role: dbUser.role || user.role,
+          verified: dbUser.verified || false,
+          isFraud: dbUser.isFraud || false
+        };
+        localStorage.setItem('user', JSON.stringify(mergedUser));
+        setUser(mergedUser);
+        console.log("✅ User data refreshed from database:", mergedUser.email, "Role:", mergedUser.role);
+        return mergedUser;
+      }
+    } catch (error) {
+      console.log("Failed to refresh user data from backend:", error.message);
+      return user; // Return current user if refresh fails
+    }
+  };
+
   const value = {
     user,
-    loading
+    loading,
+    refreshUserData
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

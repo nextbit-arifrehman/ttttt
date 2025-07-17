@@ -2,10 +2,41 @@ import { useAuth } from "../contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { User, Heart, ShoppingBag, Star, Home, Plus, BarChart3, Settings, Users, MessageSquare, Target } from "lucide-react";
+import { User, Heart, ShoppingBag, Star, Home, Plus, BarChart3, Settings, Users, MessageSquare, Target, RefreshCw } from "lucide-react";
+import { toast } from "../hooks/use-toast";
+import { useState } from "react";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshUserData } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefreshRole = async () => {
+    setIsRefreshing(true);
+    try {
+      const updatedUser = await refreshUserData();
+      if (updatedUser && updatedUser.role !== user.role) {
+        toast({
+          title: "Role Updated",
+          description: `Your role has been updated to: ${updatedUser.role}`,
+        });
+        // Force page reload to update dashboard
+        window.location.reload();
+      } else {
+        toast({
+          title: "Role Checked",
+          description: "Your role is up to date",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to refresh role from database",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const getDashboardCards = () => {
     switch (user?.role) {
@@ -140,12 +171,25 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="font-inter font-bold text-3xl md:text-4xl text-neutral-900 mb-2">
-            Welcome back, {user?.displayName || "User"}!
-          </h1>
-          <p className="text-lg text-neutral-600">
-            {getRoleDisplayName(user?.role)} Dashboard
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-inter font-bold text-3xl md:text-4xl text-neutral-900 mb-2">
+                Welcome back, {user?.displayName || "User"}!
+              </h1>
+              <p className="text-lg text-neutral-600">
+                {getRoleDisplayName(user?.role)} Dashboard
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleRefreshRole}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Checking...' : 'Refresh Role'}
+            </Button>
+          </div>
         </div>
 
         {/* Dashboard Cards */}

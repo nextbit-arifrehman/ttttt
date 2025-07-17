@@ -15,7 +15,16 @@ const verifyJWT = async (req, res, next) => {
 
   try {
     const decodedToken = await auth.verifyIdToken(token);
-    req.user = decodedToken;
+    
+    // Add user info to request with backend unique identifier
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      displayName: decodedToken.name || decodedToken.email?.split('@')[0],
+      photoURL: decodedToken.picture,
+      backendId: `user_${decodedToken.uid}` // Unique backend identifier
+    };
+    
     next();
   } catch (error) {
     console.error('Login error:', error);

@@ -13,35 +13,80 @@ const Property = {
   },
 
   getPropertyById: async (db, id) => {
-    return db.collection(COLLECTION_NAME).findOne({ _id: new ObjectId(id) });
+    // Try finding by custom string ID first (property1, property2, etc.)
+    let property = await db.collection(COLLECTION_NAME).findOne({ _id: id });
+    
+    // If not found and id looks like ObjectId, try ObjectId format
+    if (!property && ObjectId.isValid(id)) {
+      property = await db.collection(COLLECTION_NAME).findOne({ _id: new ObjectId(id) });
+    }
+    
+    return property;
   },
 
   updateProperty: async (db, id, updateData) => {
-    const result = await db.collection(COLLECTION_NAME).updateOne(
-      { _id: new ObjectId(id) },
+    // Try custom string ID first
+    let result = await db.collection(COLLECTION_NAME).updateOne(
+      { _id: id },
       { $set: updateData }
     );
+    
+    // If not found and id looks like ObjectId, try ObjectId format
+    if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+      result = await db.collection(COLLECTION_NAME).updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+    }
+    
     return result.modifiedCount > 0;
   },
 
   deleteProperty: async (db, id) => {
-    const result = await db.collection(COLLECTION_NAME).deleteOne({ _id: new ObjectId(id) });
+    // Try custom string ID first
+    let result = await db.collection(COLLECTION_NAME).deleteOne({ _id: id });
+    
+    // If not found and id looks like ObjectId, try ObjectId format
+    if (result.deletedCount === 0 && ObjectId.isValid(id)) {
+      result = await db.collection(COLLECTION_NAME).deleteOne({ _id: new ObjectId(id) });
+    }
+    
     return result.deletedCount > 0;
   },
 
   updateVerificationStatus: async (db, id, status) => {
-    const result = await db.collection(COLLECTION_NAME).updateOne(
-      { _id: new ObjectId(id) },
+    // Try custom string ID first
+    let result = await db.collection(COLLECTION_NAME).updateOne(
+      { _id: id },
       { $set: { verificationStatus: status } }
     );
+    
+    // If not found and id looks like ObjectId, try ObjectId format
+    if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+      result = await db.collection(COLLECTION_NAME).updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { verificationStatus: status } }
+      );
+    }
+    
     return result.modifiedCount > 0;
   },
 
   advertiseProperty: async (db, id, isAdvertised) => {
-    const result = await db.collection(COLLECTION_NAME).updateOne(
-      { _id: new ObjectId(id) },
+    // Try custom string ID first
+    let result = await db.collection(COLLECTION_NAME).updateOne(
+      { _id: id },
       { $set: { isAdvertised } }
     );
+    
+    // If not found and id looks like ObjectId, try ObjectId format
+    if (result.matchedCount === 0 && ObjectId.isValid(id)) {
+      result = await db.collection(COLLECTION_NAME).updateOne(
+        { _id: new ObjectId(id) },
+        { $set: { isAdvertised } }
+      );
+    }
+    
     return result.modifiedCount > 0;
   },
 
